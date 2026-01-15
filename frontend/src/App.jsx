@@ -4,7 +4,9 @@ import Dashboard from './components/Dashboard'
 import Recommendations from './components/Recommendations'
 import JobsView from './components/JobsView'
 import ClustersView from './components/ClustersView'
-import { Activity, TrendingDown, Database, Settings, Menu, X } from 'lucide-react'
+import ComputeView from './components/ComputeView'
+import SummaryMetrics from './components/SummaryMetrics'
+import { Activity, TrendingDown, Database, Settings, Menu, X, Layers, BarChart3 } from 'lucide-react'
 
 function NavLink({ to, icon: Icon, children }) {
   const location = useLocation()
@@ -47,8 +49,10 @@ function App() {
                 <div className="hidden md:ml-10 md:flex md:space-x-1">
                   <NavLink to="/" icon={Activity}>Dashboard</NavLink>
                   <NavLink to="/recommendations" icon={TrendingDown}>Recommendations</NavLink>
+                  <NavLink to="/compute" icon={Layers}>All Compute</NavLink>
                   <NavLink to="/jobs" icon={Database}>Jobs</NavLink>
                   <NavLink to="/clusters" icon={Settings}>Clusters</NavLink>
+                  <NavLink to="/summary" icon={BarChart3}>Summary</NavLink>
                 </div>
               </div>
               <div className="flex items-center md:hidden">
@@ -68,8 +72,10 @@ function App() {
               <div className="px-2 pt-2 pb-3 space-y-1">
                 <NavLink to="/" icon={Activity}>Dashboard</NavLink>
                 <NavLink to="/recommendations" icon={TrendingDown}>Recommendations</NavLink>
+                <NavLink to="/compute" icon={Layers}>All Compute</NavLink>
                 <NavLink to="/jobs" icon={Database}>Jobs</NavLink>
                 <NavLink to="/clusters" icon={Settings}>Clusters</NavLink>
+                <NavLink to="/summary" icon={BarChart3}>Summary</NavLink>
               </div>
             </div>
           )}
@@ -80,8 +86,10 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/recommendations" element={<Recommendations />} />
+            <Route path="/compute" element={<ComputeView />} />
             <Route path="/jobs" element={<JobsView />} />
             <Route path="/clusters" element={<ClustersView />} />
+            <Route path="/summary" element={<SummaryMetrics />} />
           </Routes>
         </main>
 

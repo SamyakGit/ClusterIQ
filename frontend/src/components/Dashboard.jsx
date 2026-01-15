@@ -7,11 +7,19 @@ function Dashboard() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [lastAnalysis, setLastAnalysis] = useState(null)
 
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats, error: statsError } = useQuery({
     queryKey: ['stats'],
     queryFn: fetchStats,
     refetchInterval: 30000, // Refresh every 30 seconds
   })
+
+  // Debug: Log stats to see what we're getting
+  if (stats) {
+    console.log('Dashboard Stats:', stats)
+  }
+  if (statsError) {
+    console.error('Stats Error:', statsError)
+  }
 
   const { data: recommendations, refetch: refetchRecommendations } = useQuery({
     queryKey: ['recommendations'],
@@ -71,32 +79,126 @@ function Dashboard() {
       {statsLoading ? (
         <div className="text-center py-12 text-gray-500">Loading statistics...</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
-            title="Total Jobs"
-            value={stats?.total_jobs || 0}
-            icon={<Database className="h-6 w-6" />}
-            color="blue"
-          />
-          <StatCard
-            title="Total Clusters"
-            value={stats?.total_clusters || 0}
-            icon={<Activity className="h-6 w-6" />}
-            color="green"
-          />
-          <StatCard
-            title="Running Clusters"
-            value={stats?.running_clusters || 0}
-            icon={<Activity className="h-6 w-6" />}
-            color="yellow"
-          />
-          <StatCard
-            title="Idle Clusters"
-            value={stats?.idle_clusters || 0}
-            icon={<AlertCircle className="h-6 w-6" />}
-            color="red"
-          />
-        </div>
+        <>
+          {/* Primary Compute Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard
+              title="Total Jobs"
+              value={stats?.total_jobs || 0}
+              icon={<Database className="h-6 w-6" />}
+              color="blue"
+            />
+            <StatCard
+              title="Total Clusters"
+              value={stats?.total_clusters || 0}
+              icon={<Activity className="h-6 w-6" />}
+              color="green"
+            />
+            <StatCard
+              title="Running Clusters"
+              value={stats?.running_clusters || 0}
+              icon={<Activity className="h-6 w-6" />}
+              color="yellow"
+            />
+            <StatCard
+              title="Idle Clusters"
+              value={stats?.idle_clusters || 0}
+              icon={<AlertCircle className="h-6 w-6" />}
+              color="red"
+            />
+          </div>
+
+          {/* All Compute Types Overview */}
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">All Compute Resources</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+              <StatCard
+                title="SQL Warehouses"
+                value={stats?.sql_warehouses || 0}
+                icon={<Database className="h-5 w-5" />}
+                color="blue"
+                compact
+              />
+              <StatCard
+                title="Pools"
+                value={stats?.pools || 0}
+                icon={<Activity className="h-5 w-5" />}
+                color="green"
+                compact
+              />
+              <StatCard
+                title="Vector Search"
+                value={stats?.vector_search_endpoints || 0}
+                icon={<Database className="h-5 w-5" />}
+                color="purple"
+                compact
+              />
+              <StatCard
+                title="Policies"
+                value={stats?.policies || 0}
+                icon={<Activity className="h-5 w-5" />}
+                color="yellow"
+                compact
+              />
+              <StatCard
+                title="Apps"
+                value={stats?.apps || 0}
+                icon={<Database className="h-5 w-5" />}
+                color="blue"
+                compact
+              />
+              <StatCard
+                title="Lakebase"
+                value={stats?.lakebase_resources || 0}
+                icon={<Activity className="h-5 w-5" />}
+                color="green"
+                compact
+              />
+            </div>
+          </div>
+
+          {/* AI/ML Resources Section */}
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">AI/ML Resources</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <StatCard
+                title="ML/AI Jobs"
+                value={stats?.ml_jobs || 0}
+                icon={<Database className="h-5 w-5" />}
+                color="purple"
+                compact
+              />
+              <StatCard
+                title="MLflow Experiments"
+                value={stats?.mlflow_experiments || 0}
+                icon={<Database className="h-5 w-5" />}
+                color="indigo"
+                compact
+              />
+              <StatCard
+                title="MLflow Models"
+                value={stats?.mlflow_models || 0}
+                icon={<Database className="h-5 w-5" />}
+                color="purple"
+                compact
+              />
+              <StatCard
+                title="Model Serving"
+                value={stats?.model_serving_endpoints || 0}
+                icon={<Activity className="h-5 w-5" />}
+                color="green"
+                compact
+              />
+              <StatCard
+                title="Feature Store"
+                value={stats?.feature_store_tables || 0}
+                icon={<Database className="h-5 w-5" />}
+                color="blue"
+                compact
+              />
+            </div>
+          </div>
+        </>
       )}
 
       {recommendations && (
@@ -160,12 +262,14 @@ function Dashboard() {
   )
 }
 
-function StatCard({ title, value, icon, color }) {
+function StatCard({ title, value, icon, color, compact = false }) {
   const colorClasses = {
     blue: 'bg-blue-50 border-blue-200 text-blue-700',
     green: 'bg-green-50 border-green-200 text-green-700',
     yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
     red: 'bg-red-50 border-red-200 text-red-700',
+    purple: 'bg-purple-50 border-purple-200 text-purple-700',
+    indigo: 'bg-indigo-50 border-indigo-200 text-indigo-700',
   }
 
   const iconColors = {
@@ -173,6 +277,20 @@ function StatCard({ title, value, icon, color }) {
     green: 'text-green-600',
     yellow: 'text-yellow-600',
     red: 'text-red-600',
+    purple: 'text-purple-600',
+    indigo: 'text-indigo-600',
+  }
+
+  if (compact) {
+    return (
+      <div className={`${colorClasses[color]} border rounded-lg p-4 dxc-card`}>
+        <div className="flex flex-col items-center text-center">
+          <div className={`${iconColors[color]} opacity-80 mb-2`}>{icon}</div>
+          <p className="text-2xl font-bold">{value}</p>
+          <p className="text-xs font-medium mt-1 opacity-75">{title}</p>
+        </div>
+      </div>
+    )
   }
 
   return (

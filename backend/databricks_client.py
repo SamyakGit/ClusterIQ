@@ -241,3 +241,377 @@ class DatabricksClient:
         except Exception as e:
             logger.error(f"Error fetching metrics for cluster {cluster_id}: {str(e)}")
             return {}
+    
+    def get_sql_warehouses(self) -> List[Dict[str, Any]]:
+        """Fetch all SQL warehouses from Databricks workspace.
+        
+        Returns:
+            List of SQL warehouse dictionaries
+        """
+        try:
+            url = f"{self.host}/api/2.0/sql/warehouses"
+            logger.info(f"Fetching SQL warehouses from: {url}")
+            
+            response = requests.get(url, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # Handle different response formats
+            warehouses = []
+            if isinstance(data, list):
+                warehouses = data
+            elif isinstance(data, dict):
+                # Try common keys for warehouse list
+                warehouses = data.get("warehouses", [])
+                if not warehouses:
+                    warehouses = data.get("results", [])
+                if not warehouses and "warehouse_id" in data:
+                    # Single warehouse response
+                    warehouses = [data]
+            
+            logger.info(f"Fetched {len(warehouses)} SQL warehouses")
+            
+            # Log warehouse details for debugging
+            for warehouse in warehouses[:3]:  # Log first 3
+                logger.debug(f"Warehouse: {warehouse.get('name', 'Unknown')} - ID: {warehouse.get('id', warehouse.get('warehouse_id', 'N/A'))} - State: {warehouse.get('state', 'N/A')}")
+            
+            return warehouses
+        
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning("SQL warehouses API endpoint not found. This workspace may not have SQL warehouses enabled.")
+            else:
+                logger.error(f"HTTP error fetching SQL warehouses: {e.response.status_code} - {e.response.text}")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching SQL warehouses: {str(e)}", exc_info=True)
+            return []
+    
+    def get_instance_pools(self) -> List[Dict[str, Any]]:
+        """Fetch all instance pools from Databricks workspace.
+        
+        Returns:
+            List of instance pool dictionaries
+        """
+        try:
+            url = f"{self.host}/api/2.0/instance-pools/list"
+            logger.info(f"Fetching instance pools from: {url}")
+            
+            response = requests.get(url, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            pools = data.get("instance_pools", [])
+            
+            logger.info(f"Fetched {len(pools)} instance pools")
+            return pools
+        
+        except Exception as e:
+            logger.error(f"Error fetching instance pools: {str(e)}", exc_info=True)
+            return []
+    
+    def get_vector_search_endpoints(self) -> List[Dict[str, Any]]:
+        """Fetch all Vector Search endpoints from Databricks workspace.
+        
+        Returns:
+            List of Vector Search endpoint dictionaries
+        """
+        try:
+            url = f"{self.host}/api/2.0/vector-search/endpoints"
+            logger.info(f"Fetching Vector Search endpoints from: {url}")
+            
+            response = requests.get(url, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            endpoints = data.get("endpoints", [])
+            
+            logger.info(f"Fetched {len(endpoints)} Vector Search endpoints")
+            return endpoints
+        
+        except Exception as e:
+            logger.error(f"Error fetching Vector Search endpoints: {str(e)}", exc_info=True)
+            return []
+    
+    def get_cluster_policies(self) -> List[Dict[str, Any]]:
+        """Fetch all cluster policies from Databricks workspace.
+        
+        Returns:
+            List of cluster policy dictionaries
+        """
+        try:
+            url = f"{self.host}/api/2.1/policies/clusters/list"
+            logger.info(f"Fetching cluster policies from: {url}")
+            
+            response = requests.get(url, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            policies = data.get("policies", [])
+            
+            logger.info(f"Fetched {len(policies)} cluster policies")
+            return policies
+        
+        except Exception as e:
+            logger.error(f"Error fetching cluster policies: {str(e)}", exc_info=True)
+            return []
+    
+    def get_apps(self) -> List[Dict[str, Any]]:
+        """Fetch all apps from Databricks workspace.
+        
+        Returns:
+            List of app dictionaries
+        """
+        try:
+            url = f"{self.host}/api/2.0/apps/list"
+            logger.info(f"Fetching apps from: {url}")
+            
+            response = requests.get(url, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            apps = data.get("apps", [])
+            
+            logger.info(f"Fetched {len(apps)} apps")
+            return apps
+        
+        except Exception as e:
+            logger.error(f"Error fetching apps: {str(e)}", exc_info=True)
+            # Apps API might not be available in all workspaces
+            logger.warning("Apps API may not be available in this workspace")
+            return []
+    
+    def get_lakebase_provisioned(self) -> List[Dict[str, Any]]:
+        """Fetch Lakebase Provisioned resources from Databricks workspace.
+        
+        Returns:
+            List of Lakebase provisioned resource dictionaries
+        """
+        try:
+            # Lakebase might be under Unity Catalog or a different endpoint
+            # Try multiple possible endpoints
+            endpoints_to_try = [
+                "/api/2.1/unity-catalog/storage-credentials",
+                "/api/2.1/unity-catalog/external-locations",
+                "/api/2.0/lakebase/provisioned",
+            ]
+            
+            all_resources = []
+            for endpoint_path in endpoints_to_try:
+                try:
+                    url = f"{self.host}{endpoint_path}"
+                    logger.info(f"Trying to fetch Lakebase resources from: {url}")
+                    
+                    response = requests.get(url, headers=self.headers, timeout=30)
+                    if response.status_code == 200:
+                        data = response.json()
+                        # Handle different response formats
+                        if isinstance(data, list):
+                            all_resources.extend(data)
+                        elif isinstance(data, dict):
+                            # Try common keys
+                            for key in ["storage_credentials", "external_locations", "resources", "items"]:
+                                if key in data:
+                                    all_resources.extend(data[key] if isinstance(data[key], list) else [data[key]])
+                        logger.info(f"Found {len(all_resources)} Lakebase resources from {endpoint_path}")
+                        break  # Success, no need to try other endpoints
+                except Exception as e:
+                    logger.debug(f"Endpoint {endpoint_path} not available: {str(e)}")
+                    continue
+            
+            logger.info(f"Fetched {len(all_resources)} Lakebase provisioned resources")
+            return all_resources
+        
+        except Exception as e:
+            logger.error(f"Error fetching Lakebase provisioned resources: {str(e)}", exc_info=True)
+            return []
+    
+    def get_mlflow_experiments(self) -> List[Dict[str, Any]]:
+        """Fetch all MLflow experiments from Databricks workspace.
+        
+        Returns:
+            List of MLflow experiment dictionaries
+        """
+        try:
+            url = f"{self.host}/api/2.0/mlflow/experiments/search"
+            logger.info(f"Fetching MLflow experiments from: {url}")
+            
+            response = requests.post(url, headers=self.headers, json={}, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            experiments = data.get("experiments", [])
+            
+            logger.info(f"Fetched {len(experiments)} MLflow experiments")
+            return experiments
+        
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning("MLflow experiments API endpoint not found. MLflow may not be enabled.")
+            else:
+                logger.error(f"HTTP error fetching MLflow experiments: {e.response.status_code}")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching MLflow experiments: {str(e)}", exc_info=True)
+            return []
+    
+    def get_mlflow_models(self) -> List[Dict[str, Any]]:
+        """Fetch all MLflow registered models from Databricks workspace.
+        
+        Returns:
+            List of MLflow model dictionaries
+        """
+        try:
+            url = f"{self.host}/api/2.0/mlflow/registered-models/search"
+            logger.info(f"Fetching MLflow models from: {url}")
+            
+            response = requests.post(url, headers=self.headers, json={}, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            models = data.get("registered_models", [])
+            
+            logger.info(f"Fetched {len(models)} MLflow models")
+            return models
+        
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning("MLflow models API endpoint not found. MLflow may not be enabled.")
+            else:
+                logger.error(f"HTTP error fetching MLflow models: {e.response.status_code}")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching MLflow models: {str(e)}", exc_info=True)
+            return []
+    
+    def get_model_serving_endpoints(self) -> List[Dict[str, Any]]:
+        """Fetch all model serving endpoints from Databricks workspace.
+        
+        Returns:
+            List of model serving endpoint dictionaries
+        """
+        try:
+            url = f"{self.host}/api/2.0/serving-endpoints"
+            logger.info(f"Fetching model serving endpoints from: {url}")
+            
+            response = requests.get(url, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            endpoints = data.get("endpoints", [])
+            
+            logger.info(f"Fetched {len(endpoints)} model serving endpoints")
+            return endpoints
+        
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning("Model serving endpoints API not found. Model serving may not be enabled.")
+            else:
+                logger.error(f"HTTP error fetching model serving endpoints: {e.response.status_code}")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching model serving endpoints: {str(e)}", exc_info=True)
+            return []
+    
+    def get_feature_store_tables(self) -> List[Dict[str, Any]]:
+        """Fetch all feature store tables from Databricks workspace.
+        
+        Returns:
+            List of feature store table dictionaries
+        """
+        try:
+            # Feature Store API endpoint
+            url = f"{self.host}/api/2.0/feature-store/feature-tables/search"
+            logger.info(f"Fetching feature store tables from: {url}")
+            
+            response = requests.post(url, headers=self.headers, json={}, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            tables = data.get("feature_tables", [])
+            
+            logger.info(f"Fetched {len(tables)} feature store tables")
+            return tables
+        
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning("Feature store API endpoint not found. Feature Store may not be enabled.")
+            else:
+                logger.error(f"HTTP error fetching feature store tables: {e.response.status_code}")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching feature store tables: {str(e)}", exc_info=True)
+            return []
+    
+    def get_ml_jobs(self) -> List[Dict[str, Any]]:
+        """Identify and return ML/AI jobs from the jobs list.
+        
+        Returns:
+            List of ML/AI job dictionaries (filtered from all jobs)
+        """
+        try:
+            all_jobs = self.get_all_jobs()
+            
+            # Filter jobs that are likely ML/AI jobs
+            ml_jobs = []
+            ml_keywords = ['ml', 'machine learning', 'model', 'training', 'inference', 'mlflow', 
+                          'pytorch', 'tensorflow', 'xgboost', 'sklearn', 'spark ml', 'pipeline']
+            
+            for job in all_jobs:
+                job_name = job.get("job_name", "").lower()
+                job_settings = job.get("settings", {})
+                tasks = job_settings.get("tasks", [])
+                
+                # Check if job name contains ML keywords
+                is_ml_job = any(keyword in job_name for keyword in ml_keywords)
+                
+                # Check task configurations for ML libraries
+                if not is_ml_job:
+                    for task in tasks:
+                        task_key = task.get("task_key", "").lower()
+                        notebook_path = task.get("notebook_task", {}).get("notebook_path", "").lower()
+                        spark_python_task = task.get("spark_python_task", {})
+                        python_file = spark_python_task.get("python_file", "").lower()
+                        
+                        if (any(keyword in task_key for keyword in ml_keywords) or
+                            any(keyword in notebook_path for keyword in ml_keywords) or
+                            any(keyword in python_file for keyword in ml_keywords)):
+                            is_ml_job = True
+                            break
+                
+                if is_ml_job:
+                    ml_jobs.append({
+                        **job,
+                        "ml_category": "ML/AI Job",
+                        "detected_by": "keyword_match"
+                    })
+            
+            logger.info(f"Identified {len(ml_jobs)} ML/AI jobs out of {len(all_jobs)} total jobs")
+            return ml_jobs
+        
+        except Exception as e:
+            logger.error(f"Error identifying ML jobs: {str(e)}", exc_info=True)
+            return []
+    
+    def get_all_compute_resources(self) -> Dict[str, Any]:
+        """Fetch all compute resources from Databricks workspace.
+        
+        Returns:
+            Dictionary containing all compute resource types
+        """
+        return {
+            "all_purpose_clusters": self.get_all_clusters(),
+            "job_clusters": self.get_all_clusters(),  # Job clusters are also in clusters list
+            "sql_warehouses": self.get_sql_warehouses(),
+            "vector_search": self.get_vector_search_endpoints(),
+            "pools": self.get_instance_pools(),
+            "policies": self.get_cluster_policies(),
+            "apps": self.get_apps(),
+            "lakebase_provisioned": self.get_lakebase_provisioned(),
+            "ml_jobs": self.get_ml_jobs(),
+            "mlflow_experiments": self.get_mlflow_experiments(),
+            "mlflow_models": self.get_mlflow_models(),
+            "model_serving_endpoints": self.get_model_serving_endpoints(),
+            "feature_store_tables": self.get_feature_store_tables(),
+        }

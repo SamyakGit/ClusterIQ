@@ -6,19 +6,53 @@ import { AlertTriangle, TrendingDown, DollarSign, Clock, RefreshCw } from 'lucid
 function Recommendations() {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [refreshInterval, setRefreshInterval] = useState(30)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisError, setAnalysisError] = useState(null)
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['recommendations-realtime'],
     queryFn: fetchRecommendationsRealtime,
     refetchInterval: autoRefresh ? refreshInterval * 1000 : false,
+    retry: 2,
+    retryDelay: 1000,
   })
 
   const handleManualAnalyze = async () => {
+    setIsAnalyzing(true)
+    setAnalysisError(null)
     try {
-      await analyzeJobsAndClusters()
-      refetch()
+      console.log('Starting analysis...')
+      const result = await analyzeJobsAndClusters()
+      console.log('Analysis completed:', result)
+      
+      // Check if analysis was successful
+      if (result && result.summary) {
+        console.log(`Analysis type: ${result.summary.analysis_type}, Recommendations: ${result.summary.recommendations_count}`)
+        
+        // Wait a moment for the cache to be updated
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Refetch recommendations
+        await refetch()
+        console.log('Recommendations refetched')
+      } else {
+        throw new Error('Analysis did not return expected results')
+      }
     } catch (error) {
       console.error('Analysis failed:', error)
+      // Don't show error if it's just about AI not being available - rule-based analysis should still work
+      const errorMessage = error.response?.data?.error || error.message || ''
+      if (errorMessage.includes('langchain') || errorMessage.includes('AI agent')) {
+        // This is expected - rule-based analysis should still work
+        console.log('AI not available, but rule-based analysis should work')
+        // Try to refetch anyway - rule-based analysis might have completed
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        await refetch()
+      } else {
+        setAnalysisError(errorMessage || 'Analysis failed. Please check backend connection.')
+      }
+    } finally {
+      setIsAnalyzing(false)
     }
   }
 
@@ -69,10 +103,11 @@ function Recommendations() {
           )}
           <button
             onClick={handleManualAnalyze}
-            className="dxc-button-primary flex items-center"
+            disabled={isAnalyzing}
+            className="dxc-button-primary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Analyze Now
+            <RefreshCw className={`h-4 w-4 mr-2 ${isAnalyzing ? 'animate-spin' : ''}`} />
+            {isAnalyzing ? 'Analyzing...' : 'Analyze Now'}
           </button>
         </div>
       </div>
@@ -86,11 +121,54 @@ function Recommendations() {
         </div>
       )}
 
+      {(error || analysisError) && (
+        <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-4 mb-6">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">
+                {analysisError ? 'Analysis Error' : 'Error loading recommendations'}
+              </p>
+              <p className="text-sm text-red-600 mt-1">
+                {analysisError || error.response?.data?.error || error.message || 'Failed to fetch recommendations'}
+              </p>
+              <p className="text-xs text-red-500 mt-2">
+                {analysisError 
+                  ? 'Please check that the backend server is running and Databricks credentials are configured.'
+                  : 'Make sure the backend server is running and you have run an analysis first.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
-        <div className="text-center py-12">Loading recommendations...</div>
-      ) : recommendations.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          No recommendations available. Click "Analyze Now" to generate recommendations.
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
+          <p className="text-gray-600">Loading recommendations...</p>
+        </div>
+      ) : !data || !data.has_analysis || recommendations.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="bg-gray-50 rounded-lg p-8 max-w-md mx-auto">
+            <TrendingDown className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No recommendations available</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {data?.message || "Click 'Analyze Now' to generate AI-powered recommendations for your Databricks infrastructure."}
+            </p>
+            <button
+              onClick={handleManualAnalyze}
+              disabled={isAnalyzing}
+              className="dxc-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 inline ${isAnalyzing ? 'animate-spin' : ''}`} />
+              {isAnalyzing ? 'Analyzing...' : 'Analyze Now'}
+            </button>
+            {isAnalyzing && (
+              <p className="text-xs text-gray-500 mt-4">
+                This may take a few moments. Analyzing all compute resources...
+              </p>
+            )}
+          </div>
         </div>
       ) : (
         <>

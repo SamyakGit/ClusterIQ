@@ -159,7 +159,7 @@ ClusterIQ focuses on decision intelligence, not blind automation. It does **not*
 - Python 3.9+
 - Node.js 18+
 - Databricks workspace access token
-- Azure OpenAI API key and endpoint (or standard OpenAI API key)
+- **Optional:** Azure OpenAI API key and endpoint (or standard OpenAI API key) for AI-powered recommendations
 
 ### Installation
 
@@ -187,9 +187,12 @@ ClusterIQ focuses on decision intelligence, not blind automation. It does **not*
 
 4. **Run the application:**
    ```bash
-   # Terminal 1: Start backend (simple HTTP server)
+   # Terminal 1: Start backend (choose one):
    cd backend
+   # Option A: Simple HTTP server (recommended)
    python simple_server.py
+   # Option B: Flask server
+   python main.py
 
    # Terminal 2: Start frontend
    cd frontend
@@ -197,12 +200,20 @@ ClusterIQ focuses on decision intelligence, not blind automation. It does **not*
    ```
 
 5. **Open your browser:**
-   - Navigate to `http://localhost:3000`
+   - Navigate to `http://localhost:3000` (or the port shown by Vite)
    - Backend API available at `http://localhost:8000`
+
+6. **Run your first analysis:**
+   - Click "Analyze Now" in the Recommendations tab
+   - Ensure Databricks credentials are configured in `.env`
+   - AI features require OpenAI/Azure OpenAI credentials (optional)
 
 For detailed setup instructions, see [SETUP.md](SETUP.md).
 
-**Note:** The backend uses Python's built-in HTTP server and direct REST API calls to Databricks (no FastAPI or external web framework required).
+**Note:** 
+- The backend can use Python's built-in HTTP server (`simple_server.py`) or Flask (`main.py`)
+- AI-powered recommendations are optional - the system works with rule-based analysis if AI is not configured
+- LangChain is used only for direct LLM calls (modern APIs, no deprecated agent code)
 
 ---
 
@@ -214,7 +225,7 @@ ClusterIQ/
 │   ├── simple_server.py    # Simple HTTP server (main server)
 │   ├── main.py             # Flask alternative (optional)
 │   ├── databricks_client.py # Databricks REST API client (curl-style)
-│   ├── ai_agent.py         # GenAI agent for analysis (optional)
+│   ├── ai_agent.py         # AI analysis using LangChain OpenAI (optional, modern APIs)
 │   ├── config.py           # Configuration management
 │   ├── requirements.txt    # Python dependencies
 │   ├── env.example         # Environment variables template
@@ -245,9 +256,10 @@ ClusterIQ/
 
 ### Backend
 - **Python HTTP Server** - Built-in `http.server` module (no external framework)
+- **Flask** - Alternative web framework (optional, see `main.py`)
 - **Requests** - Direct HTTP requests to Databricks REST API (curl-style)
-- **LangChain** - AI agent framework (optional)
-- **Azure OpenAI** - GPT models for analysis via Azure OpenAI
+- **LangChain OpenAI** - Direct LLM integration (optional, uses modern APIs)
+- **Azure OpenAI / OpenAI** - GPT models for analysis
 - **Python-dotenv** - Environment configuration
 
 ### Frontend
@@ -259,6 +271,13 @@ ClusterIQ/
 - **React Router** - Client-side routing
 
 ---
+
+## 🔄 Recent Updates
+
+- ✅ **LangChain Modernization**: Removed deprecated agent APIs, updated to modern LangChain OpenAI syntax
+- ✅ **Code Cleanup**: Removed unused agent code (~40 lines), streamlined dependencies
+- ✅ **Version Pinning**: Pinned LangChain versions for stability (0.3.7, 0.2.8, 0.3.4)
+- ✅ **Improved Error Handling**: Better error messages and graceful fallbacks when AI is not configured
 
 ## 🚀 Future Enhancements
 
@@ -276,7 +295,8 @@ ClusterIQ/
 - **Simple HTTP Server**: Uses Python's built-in `http.server` module
 - **Direct REST API Calls**: Makes HTTP requests directly to Databricks REST API endpoints
 - **No External Dependencies**: Minimal dependencies - only `requests` for HTTP calls
-- **Optional AI Features**: AI agent is optional - server runs without langchain if not installed
+- **Optional AI Features**: AI analysis is optional - uses LangChain OpenAI for direct LLM calls (no deprecated agent APIs)
+- **Modern LangChain**: Uses only `langchain-openai` with modern API syntax (pinned versions for stability)
 
 ### API Endpoints
 - `GET /health` - Health check
@@ -299,7 +319,8 @@ ClusterIQ/
 - ✅ **Simple & Lightweight**: No heavy frameworks - uses Python's built-in HTTP server
 - ✅ **Direct API Integration**: Uses REST API calls (curl-style) for maximum compatibility  
 - ✅ **Real-time Monitoring**: Auto-refresh capabilities for live cluster monitoring
-- ✅ **AI-Powered Analysis**: Optional Azure OpenAI integration for intelligent recommendations
+- ✅ **AI-Powered Analysis**: Optional Azure OpenAI/OpenAI integration for intelligent recommendations
+- ✅ **Modern LangChain**: Uses modern LangChain APIs (no deprecated code, pinned versions)
 - ✅ **Modern UI**: DXC-inspired professional design with React and Tailwind CSS
 - ✅ **Minimal Dependencies**: Works with Python standard library + requests (AI features optional)
 
